@@ -1,11 +1,12 @@
 # hwp-mcp-old-hangul — 옛한글 지원 개발 버전
 
-이 저장소는 [treesoop/hwp-mcp](https://github.com/treesoop/hwp-mcp)를 기반으로 옛한글 텍스트 추출을 확장한 별도 개발 저장소입니다. 원본 작성자의 MIT 라이선스와 크레딧을 유지합니다.
+이 저장소는 [treesoop/hwp-mcp](https://github.com/treesoop/hwp-mcp)를 기반으로 옛한글 텍스트 추출과 HWPX 텍스트 수정을 확장한 별도 개발 저장소입니다. 원본 작성자의 MIT 라이선스와 크레딧을 유지합니다.
 
 - **추가 도구**: `read_hwp_old_hangul` — 한양 PUA 5,660개 변환, 원문 추출 비교, 미지원 문자 진단.
 - **보존**: 아래아·반치음·옛이응·확장 자모·채움문자·방점. 기존 읽기·Markdown 도구는 `old_hangul: "unicode"`로 변환을 선택합니다.
+- **수정**: HWPX 검색·치환과 템플릿 채우기도 `old_hangul: "unicode"`를 지원합니다. 숫자 참조·분리된 run·반복 출현을 처리하고, 문단의 쪽 설정 삭제와 셀의 잔여 텍스트 문제를 보완했습니다. **`.hwp` 저장은 지원하지 않습니다.**
 - **문서**: [업데이트·테스트 결과·참고 출처](docs/UPDATES_AND_REFERENCES_KO.md), [사용법·매핑 출처·제약](docs/old-hangul.md).
-- **검증**: 합성 HWP/HWPX 및 MCP 호출을 포함한 98개 테스트 통과. 실제 고문헌 특수 글꼴은 별도 검증이 필요합니다.
+- **검증**: 합성 HWP/HWPX 및 MCP 호출을 포함한 123개 테스트 통과. HWPX 수정·저장·재열기를 검증했으며, 실제 한컴오피스의 표시·쪽 배치와 고문헌 특수 글꼴은 별도 검증이 필요합니다.
 
 ## 이 수정본 설치
 

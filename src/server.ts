@@ -130,13 +130,14 @@ const TOOLS = [
   {
     name: "replace_hwp_text",
     description:
-      "Find and replace text in an HWPX file. v0.2: only .hwpx is supported as input/output. Args: file_path, old_text, new_text, output_path (optional).",
+      "Find and replace all text occurrences in an HWPX file, including adjacent runs in one paragraph and XML character references. Only .hwpx input/output. Optional old_hangul='unicode' matches Unicode jamo against legacy Hanyang PUA; unmatched text keeps its original encoding. Replacement text is written exactly as provided. Args: file_path, old_text, new_text, output_path (optional), old_hangul (optional, default preserve).",
     inputSchema: {
       type: "object",
       properties: {
         file_path: { type: "string" },
         old_text: { type: "string" },
         new_text: { type: "string" },
+        old_hangul: { type: "string", enum: ["preserve", "unicode"] },
         output_path: { type: "string" },
       },
       required: ["file_path", "old_text", "new_text"],
@@ -145,12 +146,13 @@ const TOOLS = [
   {
     name: "fill_hwp_template",
     description:
-      "Fill multiple placeholders in an HWPX template. `replacements` is a JSON object string, e.g. {\"{{name}}\":\"Kim\",\"{{company}}\":\"Acme\"}. v0.2: .hwpx only. Args: file_path, replacements, output_path (optional).",
+      "Fill multiple placeholders in an HWPX template. `replacements` is a JSON object string of nonempty search keys to string values. Keys apply sequentially. .hwpx only. Optional old_hangul='unicode' matches Unicode jamo against legacy Hanyang PUA; unmatched text is preserved. Args: file_path, replacements, output_path (optional), old_hangul (optional, default preserve).",
     inputSchema: {
       type: "object",
       properties: {
         file_path: { type: "string" },
         replacements: { type: "string" },
+        old_hangul: { type: "string", enum: ["preserve", "unicode"] },
         output_path: { type: "string" },
       },
       required: ["file_path", "replacements"],
@@ -585,7 +587,7 @@ const HANDLERS: Record<string, (args: any) => Promise<string>> = {
 
 export function buildServer(): Server {
   const server = new Server(
-    { name: "hwp-mcp", version: "0.3.0-old-hangul.1" },
+    { name: "hwp-mcp", version: "0.3.0-old-hangul.2" },
     { capabilities: { tools: {} } }
   );
 

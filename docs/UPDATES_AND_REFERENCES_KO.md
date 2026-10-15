@@ -12,7 +12,8 @@
 | 기존 읽기·변환 도구 | `old_hangul: "unicode"` 선택 인자 추가. 생략 시 추출된 문자를 보존하는 `preserve` 모드 |
 | HWPX 숫자 참조 | rhwp 0.7.7에서 누락되는 본문의 비 ASCII XML 숫자 참조를 WASM 전달 전에 메모리에서 해석. 원본 파일은 수정하지 않음 |
 | 배포·설명 | 사용 안내와 매핑 출처를 포함. 공개 npm에 새 버전을 배포하는 작업은 수행하지 않음 |
-| 별도 개발 저장소 | `duomo77/hwp-mcp-old-hangul`에 보관. 로컬 패키지명 `hwp-mcp-old-hangul`, 버전 `0.3.0-old-hangul.1`, `private: true`로 구분하고 기존 원저작자 표시는 유지 |
+| 별도 개발 저장소 | `duomo77/hwp-mcp-old-hangul`에 보관. 로컬 패키지명 `hwp-mcp-old-hangul`, 현재 버전 `0.3.0-old-hangul.2`, `private: true`로 구분하고 기존 원저작자 표시는 유지 |
+| 옛한글 수정 검증 | HWPX 생성·추가·검색 치환·템플릿·문단·표 셀의 저장·재열기 검사. 검색 시 PUA/Unicode 동등 비교 선택 인자, 숫자 참조·인접 run·전체 출현 치환 지원. `.hwp` 저장은 미지원 |
 
 ## 기반 프로젝트와 참고 자료
 
@@ -38,7 +39,9 @@
 ## 검증 결과
 
 `npm ci` 후 `npm run build`와 `npm test`가 성공했습니다.
-테스트 파일 22개, 테스트 98개가 모두 통과했습니다.
+초기 읽기 지원 버전은 테스트 파일 22개, 테스트 98개가 모두 통과했습니다.
+수정 기능 보완 버전은 테스트 파일 24개, 테스트 123개가 모두 통과했습니다.
+발견한 문제·수정 내역·검증의 한계는 [수정 검증 보고서](OLD_HANGUL_EDIT_VERIFICATION_KO.md)에 기록했습니다.
 
 검사 범위는 HWP/HWPX 본문·표, HWP 머리말·꼬리말·각주, Unicode/PUA 혼합,
 HWPX 숫자 참조·분리된 텍스트 run, 미지원 PUA·이모지 보존,

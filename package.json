@@ -1,7 +1,7 @@
 {
   "name": "hwp-mcp-old-hangul",
-  "version": "0.3.0-old-hangul.1",
-  "description": "HWP/HWPX MCP with legacy old Hangul Unicode extraction; based on treesoop/hwp-mcp.",
+  "version": "0.3.0-old-hangul.2",
+  "description": "HWP/HWPX MCP with old Hangul extraction and HWPX text editing; based on treesoop/hwp-mcp.",
   "type": "module",
   "license": "MIT",
   "author": "Treesoop <official@treesoop.com>",
@@ -32,7 +32,8 @@
     "README.md",
     "docs/old-hangul.md",
     "docs/UPDATES_AND_REFERENCES_KO.md",
-    "LICENSE"
+    "LICENSE",
+    "docs/OLD_HANGUL_EDIT_VERIFICATION_KO.md"
   ],
   "engines": {
     "node": ">=20"

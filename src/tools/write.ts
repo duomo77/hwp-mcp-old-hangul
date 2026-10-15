@@ -10,16 +10,19 @@ import {
 } from "../core/document.js";
 import { initRhwp } from "../core/wasm-init.js";
 import { mutateHwpxText } from "../core/hwpx-mutate.js";
+import type { OldHangulMode } from "../core/old-hangul.js";
 
 export interface ReplaceTextArgs {
   file_path: string;
   old_text: string;
   new_text: string;
+  old_hangul?: OldHangulMode;
   output_path?: string;
 }
 export interface FillTemplateArgs {
   file_path: string;
   replacements: string;
+  old_hangul?: OldHangulMode;
   output_path?: string;
 }
 export interface CreateHwpxArgs {
@@ -50,8 +53,8 @@ function ensureSameFormat(inputPath: string, outputPath: string): void {
 function rejectIfHwp(inputPath: string): string | null {
   if (getFormatFromPath(inputPath) === "hwp") {
     return (
-      "v0.2은 .hwp 쓰기를 지원하지 않습니다. .hwpx 파일을 사용하거나 한컴 오피스로 .hwpx로 저장 후 시도하세요. " +
-      "(write tools support .hwpx only in v0.2; .hwp write is planned for v0.3.)"
+      "이 버전은 .hwp 쓰기를 지원하지 않습니다. 한컴오피스에서 .hwpx로 저장 후 시도하세요. " +
+      "(write tools support .hwpx only; .hwp editing is not implemented.)"
     );
   }
   return null;
@@ -83,7 +86,7 @@ export async function replaceHwpText(args: ReplaceTextArgs): Promise<string> {
   try {
     const r = await mutateHwpxText(args.file_path, outputPath, {
       [args.old_text]: args.new_text,
-    });
+    }, args.old_hangul);
     return `'${args.old_text}' → '${args.new_text}': ${r.total}건 교체 (replaced ${r.total})\n저장 (saved): ${outputPath}`;
   } catch (e) {
     return `텍스트 교체 오류 (replace error): ${(e as Error).message}`;
@@ -122,7 +125,7 @@ export async function fillHwpTemplate(args: FillTemplateArgs): Promise<string> {
   if (reject) return reject;
 
   try {
-    const r = await mutateHwpxText(args.file_path, outputPath, map);
+    const r = await mutateHwpxText(args.file_path, outputPath, map, args.old_hangul);
     const lines = [
       `저장 완료 (saved): ${outputPath}`,
       `총 ${r.total}건 치환 (${r.total} replacements)`,

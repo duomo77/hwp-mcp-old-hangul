@@ -28,7 +28,7 @@ function defaultOutput(input: string, suffix: string): string {
   return `${base}_${suffix}${ext}`;
 }
 
-function preflight(filePath: string): string | null {
+function preflight(filePath: string, outputPath?: string): string | null {
   if (!existsSync(filePath)) return `파일을 찾을 수 없습니다 (file not found): ${filePath}`;
   let fmt;
   try {
@@ -37,7 +37,10 @@ function preflight(filePath: string): string | null {
     return (e as Error).message;
   }
   if (fmt !== "hwpx") {
-    return "v0.2은 .hwpx 편집만 지원합니다 (edit tools support .hwpx only in v0.2).";
+    return "이 버전은 .hwpx 편집만 지원합니다 (edit tools support .hwpx only; .hwp editing is not implemented).";
+  }
+  if (outputPath && extname(outputPath).toLowerCase() !== ".hwpx") {
+    return "출력 경로는 .hwpx 확장자여야 합니다 (output must end with .hwpx; cross-format save not supported).";
   }
   return null;
 }
@@ -49,7 +52,7 @@ export interface AppendParaArgs {
 }
 
 export async function appendHwpParagraph(args: AppendParaArgs): Promise<string> {
-  const err = preflight(args.file_path);
+  const err = preflight(args.file_path, args.output_path);
   if (err) return err;
   const out = args.output_path && args.output_path.length > 0
     ? args.output_path
@@ -69,7 +72,7 @@ export interface DeleteParaArgs {
 }
 
 export async function deleteHwpParagraph(args: DeleteParaArgs): Promise<string> {
-  const err = preflight(args.file_path);
+  const err = preflight(args.file_path, args.output_path);
   if (err) return err;
   const out = args.output_path && args.output_path.length > 0
     ? args.output_path
@@ -91,7 +94,7 @@ export interface AppendRowArgs {
 }
 
 export async function appendHwpTableRow(args: AppendRowArgs): Promise<string> {
-  const err = preflight(args.file_path);
+  const err = preflight(args.file_path, args.output_path);
   if (err) return err;
   let cells: string[];
   try {
@@ -119,7 +122,7 @@ export interface DeleteRowArgs {
 }
 
 export async function deleteHwpTableRow(args: DeleteRowArgs): Promise<string> {
-  const err = preflight(args.file_path);
+  const err = preflight(args.file_path, args.output_path);
   if (err) return err;
   const out = args.output_path && args.output_path.length > 0
     ? args.output_path
@@ -141,7 +144,7 @@ export interface SetFieldArgs {
 }
 
 export async function setHwpFieldValue(args: SetFieldArgs): Promise<string> {
-  const err = preflight(args.file_path);
+  const err = preflight(args.file_path, args.output_path);
   if (err) return err;
   const out = args.output_path && args.output_path.length > 0
     ? args.output_path
@@ -163,7 +166,7 @@ export interface SetParaTextArgs {
 }
 
 export async function setHwpParagraphText(args: SetParaTextArgs): Promise<string> {
-  const err = preflight(args.file_path);
+  const err = preflight(args.file_path, args.output_path);
   if (err) return err;
   const out = args.output_path && args.output_path.length > 0
     ? args.output_path
@@ -187,7 +190,7 @@ export interface SetCellTextArgs {
 }
 
 export async function setHwpCellText(args: SetCellTextArgs): Promise<string> {
-  const err = preflight(args.file_path);
+  const err = preflight(args.file_path, args.output_path);
   if (err) return err;
   const out = args.output_path && args.output_path.length > 0
     ? args.output_path
@@ -208,7 +211,7 @@ export interface AppendColumnArgs {
 }
 
 export async function appendHwpTableColumn(args: AppendColumnArgs): Promise<string> {
-  const err = preflight(args.file_path);
+  const err = preflight(args.file_path, args.output_path);
   if (err) return err;
   let cells: string[];
   try {
@@ -236,7 +239,7 @@ export interface DeleteColumnArgs {
 }
 
 export async function deleteHwpTableColumn(args: DeleteColumnArgs): Promise<string> {
-  const err = preflight(args.file_path);
+  const err = preflight(args.file_path, args.output_path);
   if (err) return err;
   const out = args.output_path && args.output_path.length > 0
     ? args.output_path
@@ -257,7 +260,7 @@ export interface InsertImageArgs {
 }
 
 export async function insertHwpImage(args: InsertImageArgs): Promise<string> {
-  const err = preflight(args.file_path);
+  const err = preflight(args.file_path, args.output_path);
   if (err) return err;
   if (!existsSync(args.source_path)) {
     return `이미지 소스 파일 없음 (source not found): ${args.source_path}`;
@@ -290,7 +293,7 @@ export interface ApplyStyleArgs {
 }
 
 export async function applyHwpTextStyle(args: ApplyStyleArgs): Promise<string> {
-  const err = preflight(args.file_path);
+  const err = preflight(args.file_path, args.output_path);
   if (err) return err;
   const out = args.output_path && args.output_path.length > 0
     ? args.output_path
@@ -320,7 +323,7 @@ export interface ApplyParaStyleArgs {
 }
 
 export async function applyHwpParagraphStyle(args: ApplyParaStyleArgs): Promise<string> {
-  const err = preflight(args.file_path);
+  const err = preflight(args.file_path, args.output_path);
   if (err) return err;
   const out = args.output_path && args.output_path.length > 0
     ? args.output_path
@@ -346,7 +349,7 @@ export interface InsertTableArgs {
 }
 
 export async function insertHwpTable(args: InsertTableArgs): Promise<string> {
-  const err = preflight(args.file_path);
+  const err = preflight(args.file_path, args.output_path);
   if (err) return err;
   let headers: string[];
   let rows: string[][];
@@ -379,7 +382,7 @@ export interface MergeCellsArgs {
 }
 
 export async function mergeHwpCellsHorizontal(args: MergeCellsArgs): Promise<string> {
-  const err = preflight(args.file_path);
+  const err = preflight(args.file_path, args.output_path);
   if (err) return err;
   const out = args.output_path && args.output_path.length > 0
     ? args.output_path
@@ -404,7 +407,7 @@ export interface MergeCellsVArgs {
 }
 
 export async function mergeHwpCellsVertical(args: MergeCellsVArgs): Promise<string> {
-  const err = preflight(args.file_path);
+  const err = preflight(args.file_path, args.output_path);
   if (err) return err;
   const out = args.output_path && args.output_path.length > 0
     ? args.output_path
@@ -426,7 +429,7 @@ export interface DeleteImageArgs {
 }
 
 export async function deleteHwpImage(args: DeleteImageArgs): Promise<string> {
-  const err = preflight(args.file_path);
+  const err = preflight(args.file_path, args.output_path);
   if (err) return err;
   const out = args.output_path && args.output_path.length > 0
     ? args.output_path

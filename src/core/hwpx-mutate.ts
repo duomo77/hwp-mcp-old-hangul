@@ -1,5 +1,7 @@
 import { readFile, writeFile } from "node:fs/promises";
 import JSZip from "jszip";
+import { escapeXmlText as xmlEscape, hwpxParagraphRanges, replaceHwpxXmlText, setHwpxParagraphXmlText } from "./hwpx-text.js";
+import { getOldHangulMode, type OldHangulMode } from "./old-hangul.js";
 
 export interface MutationResult {
   total: number;
@@ -11,24 +13,29 @@ export interface MutationResult {
  * and write a new .hwpx. Operates on the raw OWPML XML, bypassing rhwp's
  * exportHwpx() (which currently does not preserve in-memory edits in 0.7.7).
  *
- * Limitations: a single hp:t text node holds the search target as a contiguous
- * substring. Splits across runs (e.g. "산업" in one <hp:t>, "AI" in the next)
- * are NOT joined and will not match. This mirrors hwpctl's text replace
- * semantics, which is acceptable for MCP-driven template fills.
+ * Matches adjacent runs in one paragraph, resolving XML entities for searching.
+ * Optional Unicode matching expands Hanyang PUA only in the search view; other
+ * document characters retain their original encoding. Keys apply sequentially.
  */
 export async function mutateHwpxText(
   inputPath: string,
   outputPath: string,
-  replacements: Record<string, string>
+  replacements: Record<string, string>,
+  oldHangul?: OldHangulMode
 ): Promise<MutationResult> {
+  const mode = getOldHangulMode(oldHangul);
+  for (const [key, value] of Object.entries(replacements)) {
+    if (!key) throw new Error("Search text must not be empty");
+    if (typeof value !== "string") throw new Error("Replacement values must be strings");
+    xmlEscape(value); // Validate all values before opening or writing files.
+  }
   const bytes = await readFile(inputPath);
   const zip = await JSZip.loadAsync(bytes);
 
-  const counts: Record<string, number> = {};
+  const counts: Record<string, number> = Object.create(null);
   let total = 0;
 
-  // Mutate every XML carrying body content: section*.xml, header.xml (HF blocks),
-  // and master pages. mimetype/content.hpf are excluded.
+  // Keep the existing section/header scope; master pages are not edited.
   const sectionFiles = Object.keys(zip.files).filter((n) =>
     /^Contents\/(section\d+|header)\.xml$/i.test(n)
   );
@@ -37,29 +44,10 @@ export async function mutateHwpxText(
     const file = zip.files[fname];
     let xml = await file.async("string");
     for (const [key, value] of Object.entries(replacements)) {
-      const escapedXml = xmlEscape(value);
-      // Only replace inside <hp:t>...</hp:t> text nodes, to avoid touching
-      // tag names or attribute values.
-      const pattern = new RegExp(
-        "(<hp:t(?:\\s[^>]*)?>)([^<]*)(" +
-          escapeRegex(key) +
-          ")([^<]*)(</hp:t>)",
-        "g"
-      );
-      let didReplace = true;
-      while (didReplace) {
-        didReplace = false;
-        xml = xml.replace(pattern, (_match, open, pre, _hit, post, close) => {
-          counts[key] = (counts[key] ?? 0) + 1;
-          total += 1;
-          didReplace = true;
-          return open + pre + escapedXml + post + close;
-        });
-        // Loop because a single node may contain multiple occurrences;
-        // String.replace with /g consumes from current position, so one pass
-        // catches all non-overlapping. Set didReplace=false after one pass.
-        break;
-      }
+      const result = replaceHwpxXmlText(xml, key, value, mode);
+      xml = result.xml;
+      counts[key] = (counts[key] ?? 0) + result.count;
+      total += result.count;
     }
     zip.file(fname, xml);
   }
@@ -86,13 +74,6 @@ export async function mutateHwpxText(
 
 function escapeRegex(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-function xmlEscape(s: string): string {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
 }
 
 export interface ImageReplaceMap {
@@ -337,23 +318,13 @@ export async function setHwpxParagraphText(
   text: string
 ): Promise<{ replaced: number; total: number }> {
   const { zip, sectionName, xml } = await loadSection(inputPath);
-  const matches = [...xml.matchAll(PARA_REGEX)];
+  const matches = hwpxParagraphRanges(xml);
   if (index < 0 || index >= matches.length) {
     return { replaced: 0, total: matches.length };
   }
-  const para = matches[index][0];
-  // Replace every <hp:t>...</hp:t> with one carrying the new text;
-  // collapse to a single <hp:run><hp:t>NEW</hp:t></hp:run> body inside the
-  // paragraph wrapper to avoid duplicating runs.
-  const open = para.match(/^<hp:p [^>]*>/)?.[0] ?? "<hp:p>";
-  const close = "</hp:p>";
-  const charPrMatch = para.match(/<hp:run [^>]*charPrIDRef="(\d+)"/);
-  const charPrId = charPrMatch ? charPrMatch[1] : "0";
-  const newPara =
-    open +
-    `<hp:run charPrIDRef="${charPrId}"><hp:t>${xmlEscape(text)}</hp:t></hp:run>` +
-    close;
-  const newXml = xml.replace(para, newPara);
+  const { start, end } = matches[index];
+  const para = xml.slice(start, end);
+  const newXml = xml.slice(0, start) + setHwpxParagraphXmlText(para, text) + xml.slice(end);
   await writeSection(zip, sectionName, newXml, outputPath);
   return { replaced: 1, total: matches.length };
 }
@@ -385,10 +356,33 @@ export async function setHwpxCellText(
     throw new Error(`Col index out of range: ${colIndex} (total ${tcs.length})`);
   }
   const tcXml = tcs[colIndex][0];
-  const newTcXml = tcXml.replace(/<hp:t>[^<]*<\/hp:t>/, `<hp:t>${xmlEscape(text)}</hp:t>`);
-  const newTrXml = trXml.replace(tcXml, newTcXml);
-  const newTableXml = tableXml.replace(trXml, newTrXml);
-  const newXml = xml.replace(tableXml, newTableXml);
+  if (/<hp:tbl\b/.test(tcXml)) {
+    throw new Error("Nested tables in a cell are not supported by set_hwp_cell_text; use replace_hwp_text instead");
+  }
+  // A cell can contain several paragraphs and several runs. Change its own
+  // text once, clear the remainder, and retain paragraph/control structure.
+  const paragraphs = hwpxParagraphRanges(tcXml);
+  let newTcXml = "", cursor = 0, first = true;
+  for (const para of paragraphs) {
+    if (para.start < cursor) continue; // Nested controls keep their own text.
+    newTcXml += tcXml.slice(cursor, para.start) +
+      setHwpxParagraphXmlText(tcXml.slice(para.start, para.end), first ? text : "");
+    cursor = para.end;
+    first = false;
+  }
+  newTcXml += tcXml.slice(cursor);
+  if (first) {
+    // Compatibility with minimal OWPML fixtures lacking paragraph wrappers.
+    newTcXml = tcXml.replace(/<hp:t>[^<]*<\/hp:t>/g, () => {
+      const result = `<hp:t>${first ? xmlEscape(text) : ""}</hp:t>`;
+      first = false;
+      return result;
+    });
+    if (first) throw new Error("No editable text paragraph in target cell");
+  }
+  const newTrXml = trXml.replace(tcXml, () => newTcXml);
+  const newTableXml = tableXml.replace(trXml, () => newTrXml);
+  const newXml = xml.replace(tableXml, () => newTableXml);
   await writeSection(zip, sectionName, newXml, outputPath);
   return { replaced: 1 };
 }
